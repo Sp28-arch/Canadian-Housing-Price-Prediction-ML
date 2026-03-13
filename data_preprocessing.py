@@ -1,3 +1,19 @@
+# ---
+# jupyter:
+#   jupytext:
+#     formats: py:percent
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.18.1
+#   kernelspec:
+#     display_name: Python 3 (ipykernel)
+#     language: python
+#     name: python3
+# ---
+
+# %%
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
@@ -28,3 +44,5 @@ data_scaled.to_csv("house_data_processed_scaled.csv", index=False)
 data_original.to_csv("house_data_processed_full.csv", index=False)  # original numbers for plots
 
 print(f"Processed dataset saved. Scaled for model: {data_scaled.shape}, Original for plots: {data_original.shape}")
+
+# %%
