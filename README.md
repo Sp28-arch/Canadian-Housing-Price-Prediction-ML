@@ -3,6 +3,9 @@ Machine learning regression project predicting Canadian house prices using Linea
 
 How to use: 
 
-Step 1: Run train_model.py
-Step 2: Run predict_price.py
+1: Run The Run_all.py file.
+
+2: Answer the questions in the consol ( U can leave it blank my pressing enter)
+
+3: When you are finished the Cleanup.py file to clean up the workspace
 
