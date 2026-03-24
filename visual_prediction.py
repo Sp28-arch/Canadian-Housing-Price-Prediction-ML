@@ -1,122 +1,149 @@
-# ---
-# jupyter:
-#   jupytext:
-#     formats: py:percent
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.18.1
-#   kernelspec:
-#     display_name: Python 3 (ipykernel)
-#     language: python
-#     name: python3
-# ---
-
-# %%
-
-# %%
-# visual_prediction_fixed.py
 import pandas as pd
-import joblib
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import StandardScaler
 
-# -----------------------------
-# CONFIG
-# -----------------------------
-scaled_data_file = "Project/house_data_processed_scaled.csv"
-original_data_file = "Project/house_data_processed_full.csv"  # original values for plots
-model_file = "Project/linear_regression_model.joblib"
-scaler_file = "Project/scaler.joblib"
-cities = ['Calgary', 'Montreal', 'Ottawa', 'Toronto', 'Vancouver']
-numeric_features = ['Total_Area_sqft','Bedrooms','Distance_to_CityCenter_km','Population_Density','Year_to_build']
+full_file = "/home/jupyter/house_data_processed_full.csv"
+prediction_file = "/home/jupyter/house_price_predictions.csv"
+price_unit = 1000
 
-# -----------------------------
-# LOAD DATA
-# -----------------------------
-try:
-    data_scaled = pd.read_csv(scaled_data_file)
-    data_original = pd.read_csv(original_data_file)
-except FileNotFoundError:
-    raise SystemExit("Error: CSV files not found. Make sure you have both scaled and original CSVs!")
+# LOAD ORIGINAL DATA AND PREDICTIONS
+full_data = pd.read_csv(full_file)
+pred_data = pd.read_csv(prediction_file)
 
-# -----------------------------
-# LOAD MODEL & SCALER
-# -----------------------------
-try:
-    model = joblib.load(model_file)
-    scaler = joblib.load(scaler_file)
-except FileNotFoundError:
-    raise SystemExit("Error: Model or scaler not found. Train the model first!")
+# MATCH TEST PREDICTIONS BACK TO ORIGINAL ROWS
+plot_data = full_data.loc[pred_data["Original_Index"]].copy()
+plot_data["Actual_Price"] = pred_data["Actual_Price"].values
+plot_data["Predicted_Price"] = pred_data["Predicted_Price"].values
 
-# -----------------------------
-# ENSURE CITY COLUMNS
-# -----------------------------
-for c in cities:
-    if f'City_{c}' not in data_scaled.columns:
-        if 'City' in data_scaled.columns:
-            data_scaled[f'City_{c}'] = (data_scaled['City'].str.capitalize() == c).astype(int)
-        else:
-            data_scaled[f'City_{c}'] = 0
-
-all_features = numeric_features + [f"City_{c}" for c in cities]
-
-# -----------------------------
-# SCALE NUMERIC FEATURES (if not already)
-# -----------------------------
-data_scaled.loc[:, numeric_features] = scaler.transform(data_scaled[numeric_features])
-
-# -----------------------------
-# PREDICT
-# -----------------------------
-data_scaled['Predicted_Price'] = model.predict(data_scaled[all_features])
-data_scaled['Predicted_Price'] = data_scaled['Predicted_Price'].clip(lower=0)
-
-# -----------------------------
-# PLOTS: Combined Features vs Price
-# -----------------------------
-feature_groups = {
-    "Total_Area_sqft + Bedrooms": ['Total_Area_sqft','Bedrooms'],
-    "Distance_to_CityCenter_km + Population_Density": ['Distance_to_CityCenter_km','Population_Density'],
-    "Total_Area_sqft + Bedrooms + Distance_to_CityCenter_km": ['Total_Area_sqft','Bedrooms','Distance_to_CityCenter_km']
-}
-
-for group_name, features in feature_groups.items():
-    # Use original numeric values for x-axis
-    combined_feature = data_original[features].sum(axis=1)
-
-    plt.figure(figsize=(8,6))
-    plt.scatter(combined_feature, data_original['Price'], alpha=0.5, label='Actual Price')
-    plt.scatter(combined_feature, data_scaled['Predicted_Price'], alpha=0.5, label='Predicted Price')
-    plt.xlabel(" + ".join(features))
-    plt.ylabel("Price ($)")
-    plt.title(f"{group_name} vs House Price")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(f"{group_name.replace(' ', '_')}_vs_price.png")
-    plt.show()
-
-    # -----------------------------
-# PLOT: Predicted Price vs Actual Price
-# -----------------------------
-plt.figure(figsize=(8,6))
-plt.scatter(data_original['Price'], data_scaled['Predicted_Price'], alpha=0.5, color='purple')
-plt.plot([data_original['Price'].min(), data_original['Price'].max()],
-         [data_original['Price'].min(), data_original['Price'].max()],
-         'r--', linewidth=2, label='Perfect Prediction')
-plt.xlabel("Actual Price ($)")
-plt.ylabel("Predicted Price ($)")
-plt.title("Predicted Price vs Actual Price")
+# 1. ACTUAL VS PREDICTED PRICE
+plt.figure(figsize=(8, 6))
+plt.scatter(plot_data["Actual_Price"], plot_data["Predicted_Price"], alpha=0.6)
+plt.plot(
+    [plot_data["Actual_Price"].min(), plot_data["Actual_Price"].max()],
+    [plot_data["Actual_Price"].min(), plot_data["Actual_Price"].max()],
+    "r--",
+    label="Perfect Prediction"
+)
+plt.xlabel(f"Actual Price ($, 1 unit = ${price_unit})")
+plt.ylabel(f"Predicted Price ($, 1 unit = ${price_unit})")
+plt.title("Actual vs Predicted House Prices")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig("Predicted_vs_Actual_Price.png")
 plt.show()
 
-# %%
+# 2. TWO-FEATURE GRAPHS
+feature_pairs = {
+    "Square Footage and Bedrooms": ["Total_Area_sqft", "Bedrooms"],
+    "Distance to City Center and Population Density": ["Distance_to_CityCenter_km", "Population_Density"],
+    "Square Footage and Year Built": ["Total_Area_sqft", "Year_to_build"],
+    "Bedrooms and Population Density": ["Bedrooms", "Population_Density"],
+    "Square Footage and Distance to City Center": ["Total_Area_sqft", "Distance_to_CityCenter_km"]
+}
 
-# %%
+for graph_name, features in feature_pairs.items():
+    x_feature = features[0]
+    y_feature = features[1]
 
-# %%
+    # Actual price color graph
+    plt.figure(figsize=(8, 6))
+    scatter = plt.scatter(
+        plot_data[x_feature],
+        plot_data[y_feature],
+        c=plot_data["Actual_Price"],
+        cmap="viridis",
+        alpha=0.7
+    )
+    plt.colorbar(scatter, label=f"Actual Price ($, 1 unit = ${price_unit})")
+    plt.xlabel(x_feature)
+    plt.ylabel(y_feature)
+    plt.title(f"{graph_name} vs Actual Price")
+
+    scale_text = (
+        f"{x_feature}: min={plot_data[x_feature].min():.2f}, max={plot_data[x_feature].max():.2f}\n"
+        f"{y_feature}: min={plot_data[y_feature].min():.2f}, max={plot_data[y_feature].max():.2f}\n"
+        f"Actual Price: min={plot_data['Actual_Price'].min():.2f}, max={plot_data['Actual_Price'].max():.2f}"
+    )
+
+    plt.text(
+        0.95, 0.02, scale_text,
+        transform=plt.gca().transAxes,
+        fontsize=9,
+        verticalalignment="bottom",
+        horizontalalignment="right",
+        bbox=dict(facecolor="white", alpha=0.7, edgecolor="gray")
+    )
+
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    # Predicted price color graph
+    plt.figure(figsize=(8, 6))
+    scatter = plt.scatter(
+        plot_data[x_feature],
+        plot_data[y_feature],
+        c=plot_data["Predicted_Price"],
+        cmap="plasma",
+        alpha=0.7
+    )
+    plt.colorbar(scatter, label=f"Predicted Price ($, 1 unit = ${price_unit})")
+    plt.xlabel(x_feature)
+    plt.ylabel(y_feature)
+    plt.title(f"{graph_name} vs Predicted Price")
+
+    scale_text = (
+        f"{x_feature}: min={plot_data[x_feature].min():.2f}, max={plot_data[x_feature].max():.2f}\n"
+        f"{y_feature}: min={plot_data[y_feature].min():.2f}, max={plot_data[y_feature].max():.2f}\n"
+        f"Predicted Price: min={plot_data['Predicted_Price'].min():.2f}, max={plot_data['Predicted_Price'].max():.2f}"
+    )
+
+    plt.text(
+        0.95, 0.02, scale_text,
+        transform=plt.gca().transAxes,
+        fontsize=9,
+        verticalalignment="bottom",
+        horizontalalignment="right",
+        bbox=dict(facecolor="white", alpha=0.7, edgecolor="gray")
+    )
+
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+# 3. SINGLE-FEATURE GRAPHS
+single_features = [
+    "Total_Area_sqft",
+    "Bedrooms",
+    "Distance_to_CityCenter_km",
+    "Population_Density",
+    "Year_to_build"
+]
+
+for feature in single_features:
+    plt.figure(figsize=(8, 6))
+    plt.scatter(plot_data[feature], plot_data["Actual_Price"], alpha=0.5, label="Actual Price")
+    plt.scatter(plot_data[feature], plot_data["Predicted_Price"], alpha=0.5, label="Predicted Price")
+
+    plt.xlabel(feature)
+    plt.ylabel(f"Price ($, 1 unit = ${price_unit})")
+    plt.title(f"{feature} vs House Price")
+
+    scale_text = (
+        f"{feature}: min={plot_data[feature].min():.2f}, max={plot_data[feature].max():.2f}\n"
+        f"Actual Price: min={plot_data['Actual_Price'].min():.2f}, max={plot_data['Actual_Price'].max():.2f}\n"
+        f"Predicted Price: min={plot_data['Predicted_Price'].min():.2f}, max={plot_data['Predicted_Price'].max():.2f}"
+    )
+
+    plt.text(
+        0.95, 0.02, scale_text,
+        transform=plt.gca().transAxes,
+        fontsize=9,
+        verticalalignment="bottom",
+        horizontalalignment="right",
+        bbox=dict(facecolor="white", alpha=0.7, edgecolor="gray")
+    )
+
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
