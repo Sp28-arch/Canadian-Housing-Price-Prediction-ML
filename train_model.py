@@ -1,44 +1,18 @@
-# ---
-# jupyter:
-#   jupytext:
-#     formats: py:percent
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.18.1
-#   kernelspec:
-#     display_name: Python 3 (ipykernel)
-#     language: python
-#     name: python3
-# ---
-
-# %%
-# model_training.py
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
 import joblib
 
-# -----------------------------
-# CONFIG
-# -----------------------------
-data_file = "Project/house_data_processed_scaled.csv"
-model_file = "Project/linear_regression_model.joblib"
-scaler_file = "Project/scaler.joblib"
+data_file = "/home/jupyter/house_data_processed_scaled.csv"
+model_file = "/home/jupyter/linear_regression_model.joblib"
+prediction_file = "/home/jupyter/house_price_predictions.csv"
 
-# -----------------------------
 # LOAD DATA
-# -----------------------------
-try:
-    data = pd.read_csv(data_file)
-except FileNotFoundError:
-    raise SystemExit(f"Error: CSV file '{data_file}' not found!")
+data = pd.read_csv(data_file)
 
-# -----------------------------
-# ENCODE CITIES
-# -----------------------------
+# ENCODE CITIES IF NEEDED
 cities = ['Calgary', 'Montreal', 'Ottawa', 'Toronto', 'Vancouver']
 for c in cities:
     if f'City_{c}' not in data.columns:
@@ -47,41 +21,53 @@ for c in cities:
         else:
             data[f'City_{c}'] = 0
 
-# -----------------------------
 # FEATURES & TARGET
-# -----------------------------
-numeric_features = ['Total_Area_sqft','Bedrooms','Distance_to_CityCenter_km',
-                    'Population_Density','Year_to_build']
+numeric_features = [
+    'Total_Area_sqft',
+    'Bedrooms',
+    'Distance_to_CityCenter_km',
+    'Population_Density',
+    'Year_to_build'
+]
+
 feature_cols = numeric_features + [f'City_{c}' for c in cities]
 
 X = data[feature_cols].copy()
 y = data['Price']
 
-# -----------------------------
-# SCALE NUMERIC FEATURES
-# -----------------------------
-scaler = StandardScaler()
-X[numeric_features] = scaler.fit_transform(X[numeric_features])
+# TRAIN / TEST SPLIT
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
-# -----------------------------
-# SPLIT DATASET
-# -----------------------------
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# -----------------------------
 # TRAIN MODEL
-# -----------------------------
 model = LinearRegression()
 model.fit(X_train, y_train)
 
-# -----------------------------
-# SAVE MODEL & SCALER
-# -----------------------------
+# MAKE PREDICTIONS
+y_pred = model.predict(X_test)
+y_pred = np.maximum(y_pred, 0)
+
+# EVALUATE MODEL
+mse = mean_squared_error(y_test, y_pred)
+rmse = np.sqrt(mse)
+r2 = r2_score(y_test, y_pred)
+
+print("Model Performance:")
+print(f"MSE: {mse:.2f}")
+print(f"RMSE: {rmse:.2f}")
+print(f"R² Score: {r2:.4f}")
+
+# SAVE PREDICTIONS WITH ORIGINAL INDEX
+predictions_df = pd.DataFrame({
+    "Original_Index": X_test.index,
+    "Actual_Price": y_test.values,
+    "Predicted_Price": y_pred
+})
+
+predictions_df.to_csv(prediction_file, index=False)
+print("\nSaved predictions to:", prediction_file)
+
+# SAVE MODEL
 joblib.dump(model, model_file)
-joblib.dump(scaler, scaler_file)
-
-print("✅ Model and scaler saved successfully!")
-
-# %%
-
-# %%
+print("Model saved successfully!")
