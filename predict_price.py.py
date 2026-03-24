@@ -1,79 +1,60 @@
-# ---
-# jupyter:
-#   jupytext:
-#     formats: py:percent
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.18.1
-#   kernelspec:
-#     display_name: Python 3 (ipykernel)
-#     language: python
-#     name: python3
-# ---
-
-# %%
-# predict_price_simple.py
 import pandas as pd
 import joblib
+import numpy as np
 
-# -----------------------------
-# LOAD MODEL AND SCALER
-# -----------------------------
-try:
-    model = joblib.load("linear_regression_model.joblib")
-    scaler = joblib.load("scaler.joblib")
-except FileNotFoundError:
-    raise SystemExit("Error: Model or scaler not found. Train the model first!")
+model_file = "/home/jupyter/linear_regression_model.joblib"
+scaler_file = "/home/jupyter/scaler.joblib"
+full_data_file = "/home/jupyter/house_data_processed_full.csv"
 
-# -----------------------------
-# LOAD CSV (for feature info)
-# -----------------------------
-try:
-    data = pd.read_csv("house_data_processed_scaled.csv")
-except FileNotFoundError:
-    raise SystemExit("Error: CSV file not found!")
+# LOAD MODEL, SCALER, AND ORIGINAL DATA
+model = joblib.load(model_file)
+scaler = joblib.load(scaler_file)
+full_data = pd.read_csv(full_data_file)
 
-# -----------------------------
-# FEATURES
-# -----------------------------
 cities = ['Calgary', 'Montreal', 'Ottawa', 'Toronto', 'Vancouver']
-numeric_features = ['Total_Area_sqft','Bedrooms','Distance_to_CityCenter_km','Population_Density','Year_to_build']
-all_features = numeric_features + [f"City_{c}" for c in cities]
 
-# -----------------------------
-# USER INPUT
-# -----------------------------
+numeric_features = [
+    'Total_Area_sqft',
+    'Bedrooms',
+    'Distance_to_CityCenter_km',
+    'Population_Density',
+    'Year_to_build'
+]
+
+all_features = numeric_features + [f'City_{c}' for c in cities]
+
+# USE DATASET AVERAGES IF USER SKIPS A VALUE
+defaults = {
+    feature: float(full_data[feature].mean())
+    for feature in numeric_features
+}
+
 print("--- House Price Prediction ---")
-print("Press ENTER to skip a value.")
+print("Press ENTER to use the average value.\n")
 
 user_input = {}
-for f in numeric_features:
-    val = input(f"{f.replace('_',' ')}: ").strip()
-    if val != "":
-        user_input[f] = float(val)
+
+for feature in numeric_features:
+    value = input(f"{feature.replace('_', ' ')}: ").strip()
+    if value == "":
+        user_input[feature] = defaults[feature]
+    else:
+        user_input[feature] = float(value)
 
 city_input = input(f"City ({', '.join(cities)}): ").strip().capitalize()
-for c in cities:
-    user_input[f"City_{c}"] = 1 if city_input == c else 0
 
-# -----------------------------
-# CREATE TEMPLATE ROW
-# -----------------------------
+for city in cities:
+    user_input[f"City_{city}"] = 1 if city_input == city else 0
+
+# CREATE INPUT ROW
 template_row = pd.DataFrame([user_input], columns=all_features)
 
-# SCALE NUMERIC FEATURES
-features_to_scale = [f for f in numeric_features if f in template_row.columns]
-if features_to_scale:
-    template_row.loc[:, features_to_scale] = scaler.transform(template_row[features_to_scale])
+# SCALE NUMERIC FEATURES IN THE EXACT ORDER THE SCALER EXPECTS
+scaled_numeric = scaler.transform(template_row[numeric_features].values)
+template_row.loc[:, numeric_features] = scaled_numeric
 
-# -----------------------------
 # PREDICT PRICE
-# -----------------------------
 prediction = model.predict(template_row)[0]
-prediction = max(prediction, 0)  # ensure positive
+prediction = max(prediction, 0)
 
 print(f"\nPredicted House Price: $ {prediction:,.2f}")
-
-# %%
