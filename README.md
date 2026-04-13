@@ -1,11 +1,10 @@
-# Canadian-Housing-Price-Prediction-ML
-Machine learning regression project predicting Canadian house prices using Linear Regression.
+Developed a machine learning regression project to predict Canadian housing prices using Python and scikit-learn. Built a complete pipeline including data preprocessing, model training, evaluation, and visualization of predicted vs. actual values. Implemented separate modules for data cleaning, training, visualization, and user driven prediction, allowing users to input features and generate price predictions. This project strengthened my skills in data preprocessing, model evaluation, and applying machine learning to real-world datasets.
 
-How to use: 
 
-1: Run The Run_all.py file.
 
-2: Answer the questions in the consol ( U can leave it blank my pressing enter)
-
-3: When you are finished the Cleanup.py file to clean up the workspace
-
+ How to Use the Application:
+ 
+Run data_preprocessing.py to clean and prepare the dataset.
+Run train_model.py to train the machine learning model using the processed data.
+(Optional) Run visualize.py to view graphs comparing predicted vs actual values.
+Run predict_price.py to input property details and generate a predicted house price.
